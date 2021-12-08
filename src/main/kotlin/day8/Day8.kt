@@ -4,30 +4,6 @@ import java.io.File
 
 typealias Line = Pair<List<String>, List<String>>
 
-val digitToChars = mapOf(
-    0 to listOf('a', 'b', 'c', 'e', 'f', 'g'),
-    1 to listOf('c', 'f'),
-    2 to listOf('a', 'c', 'd', 'e', 'g'),
-    3 to listOf('a', 'c', 'd', 'f', 'g'),
-    4 to listOf('b', 'c', 'd', 'f'),
-    5 to listOf('a', 'b', 'd', 'f', 'g'),
-    6 to listOf('a', 'b', 'd', 'e', 'f', 'g'),
-    7 to listOf('a', 'c', 'f'),
-    8 to listOf('a', 'b', 'c', 'd', 'e', 'f', 'g'),
-    9 to listOf('a', 'b', 'c', 'd', 'f', 'g'),
-)
-
-val sizeToDigit = mapOf(
-    2 to listOf(1),
-    3 to listOf(7),
-    4 to listOf(4),
-    5 to listOf(2, 3, 5),
-    6 to listOf(0, 6, 9),
-    7 to listOf(8),
-)
-
-val unique = sizeToDigit.filterValues { it.size == 1 }.keys
-
 fun main() {
     val input = File("src/main/kotlin/day8/input.txt")
         .readLines()
@@ -46,61 +22,42 @@ fun parse(s: String): List<String> = s.split(Regex("""\s+"""))
     .filter { it.isNotBlank() }
 
 fun part1(input: List<Line>): Int =
-    input.sumOf { (_, output) -> output.count { it.length in unique } }
+    input.sumOf { (_, output) -> output.count { it.length in listOf(2, 3, 4, 7) } }
 
 fun part2(input: List<Line>): Int =
     input.sumOf { (xs, output) ->
-        // to begin with, each position could be represented by of 'a' to 'g'
-        val m = mapOf(
-            'a' to 'a'..'g',
-            'b' to 'a'..'g',
-            'c' to 'a'..'g',
-            'd' to 'a'..'g',
-            'e' to 'a'..'g',
-            'f' to 'a'..'g',
-            'g' to 'a'..'g',
-        ).mapValues { it.value.toList() }.toMutableMap()
+        val ys = xs.map { it.toCharArray().sorted() }
 
-        // constrain by known lengths of 1, 4, 7, 8
-        xs.filter { it.length in unique }.forEach { x ->
-            sizeToDigit[x.length]!!
-                .map { digitToChars[it]!! }
-                .first()
-                .forEach { y -> m[y] = m[y]!!.filter { it in x } }
-        }
+        // 1, 4, 7 and 8 are known by their unique lengths (of 2, 4, 3, 7 respectively)
+        val m = mutableMapOf(
+            1 to ys.find { it.size == 2 }!!,
+            4 to ys.find { it.size == 4 }!!,
+            7 to ys.find { it.size == 3 }!!,
+            8 to ys.find { it.size == 7 }!!,
+        )
 
-        // deduce position 'a'
-        m['a'] = m['a']!!.filter { it !in m['c']!! && it !in m['f']!! }
+        // the 9 is the only size 6 that has all the chars of the 4
+        m[9] = ys.filter { it.size == 6 }.find { y -> m[4]!!.all { it in y } }!!
 
-        // constrain remaining positions by what's known about positions 'a', 'c' and 'f'
-        listOf('b', 'd', 'e', 'g').forEach { x ->
-            m[x] = m[x]!!.filter { it != m['a']!!.first() && it !in m['c']!! }
-        }
+        // the 0 is the only size 6 (apart from 9) that has both the chars of the 1
+        m[0] = ys.filter { it.size == 6 && it != m[9] }.find { y -> m[1]!!.all { it in y } }!!
 
-        // constrain remaining positions by what's known about positions 'b' and 'd'
-        listOf('e', 'g').forEach { x ->
-            m[x] = m[x]!!.filter { it !in m['b']!! }
-        }
+        // the 6 is therefore the only remaining size 6
+        m[6] = ys.find { it.size == 6 && it != m[0] && it != m[9] }!!
 
-        // position 'c' is the only char that 6 doesn't have that both 0 and 9 do have
-        // position 'd' is the only char that 0 doesn't have that both 6 and 9 do have
-        // position 'e' is the only char that 9 doesn't have that both 0 and 6 do have
-        val size6 = xs.filter { it.length == 6 }.map { it.toCharArray().sorted() }
-        m['c'] = m['c']!!.filter { x -> size6.count { x in it } < 3 }
-        m['f'] = m['f']!!.filter { x -> x !in m['c']!! }
-        m['d'] = m['d']!!.filter { x -> size6.count { x in it } < 3 }
-        m['b'] = m['b']!!.filter { x -> x !in m['d']!! }
-        m['e'] = m['e']!!.filter { x -> size6.count { x in it } < 3 }
-        m['g'] = m['g']!!.filter { x -> x !in m['e']!! }
+        // the 3 is the only size 5 one that has both the chars of the 1
+        m[3] = ys.filter { it.size == 5 }.find { y -> m[1]!!.all { it in y } }!!
 
-        // convert output
-        val n = m.mapValues { (_, xs) -> xs.first() }
-        output.joinToString("") {
-            sizeToDigit[it.length]!!
-                .map { x -> Pair(x, digitToChars[x]!!.map { y -> n[y]!! }.sorted()) }
-                .filter { x -> x.second == it.toCharArray().sorted() }
-                .map { x -> x.first }
-                .first()
-                .toString()
-        }.toInt()
+        // the 5 is the only size 5 for which all its chars appear in the 6
+        m[5] = ys.find { it.size == 5 && it.all { x -> x in m[6]!! } }!!
+
+        // the 2 is therefore the only remaining size 5
+        m[2] = ys.find { it.size == 5 && it != m[3] && it != m[5] }!!
+
+        // transform output
+        output
+            .map { it.toCharArray().sorted() }
+            .map { x -> m.filterValues { it == x }.keys.first() }
+            .joinToString("")
+            .toInt()
     }
