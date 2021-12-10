@@ -38,8 +38,7 @@ fun part2(input: List<String>): Long {
     val incomplete = input.asSequence()
         .map { scoreLine(it) }
         .filter { it.first == 0 }
-        .map { it.second.reversed().map { c -> lookup[c]!! }.joinToString("") }
-        .map { scoreAutocomplete(it) }
+        .map { scoreAutocomplete(it.second.reversed().map { c -> lookup[c]!! }) }
         .sorted()
         .toList()
     return incomplete[incomplete.size / 2]
@@ -58,5 +57,5 @@ fun scoreLine(line: String): Pair<Int, List<Char>> {
     return Pair(0, stack)
 }
 
-fun scoreAutocomplete(s: String): Long =
-    s.fold(0) { acc, c -> 5 * acc + scoreTablePart2[c]!! }
+fun scoreAutocomplete(xs: List<Char>): Long =
+    xs.fold(0) { acc, c -> 5 * acc + scoreTablePart2[c]!! }
